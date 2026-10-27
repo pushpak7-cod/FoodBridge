@@ -6,12 +6,14 @@ import { FoodBridgeStore } from '@/lib/store';
 import { SurplusListing, ListingStatus, RestaurantProfile } from '@/lib/types';
 import GlassPanel from '@/components/GlassPanel';
 import ExpiryCountdown from '@/components/ExpiryCountdown';
+import { ListingCardSkeleton } from '@/components/ModernSkeleton';
 import { PlusCircle, Utensils, ArrowLeft } from 'lucide-react';
 
 export default function RestaurantListingsPage() {
   const [listings, setListings] = useState<SurplusListing[]>([]);
   const [activeTab, setActiveTab] = useState<ListingStatus | 'all'>('all');
   const [restaurant, setRestaurant] = useState<RestaurantProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadListings = () => {
     const user = FoodBridgeStore.getCurrentUser();
@@ -20,6 +22,7 @@ export default function RestaurantListingsPage() {
     if (rest) {
       setListings(FoodBridgeStore.getListings().filter((l) => l.restaurant_id === rest.id));
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -92,7 +95,13 @@ export default function RestaurantListingsPage() {
       </div>
 
       {/* Listings Grid */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <ListingCardSkeleton />
+          <ListingCardSkeleton />
+          <ListingCardSkeleton />
+        </div>
+      ) : filtered.length === 0 ? (
         <GlassPanel variant="standard" className="p-12 text-center space-y-3 border border-white/80">
           <Utensils className="w-10 h-10 text-ink-light mx-auto" />
           <h3 className="font-serif font-bold text-ink text-base">No listings in this view</h3>

@@ -39,6 +39,9 @@ export default function RootLayout({
                   Live route coordination
                 </span>
                 <span className="text-ink-muted">Verified food safety standards</span>
+                <a href="/privacy" className="text-accent-primary hover:underline font-medium">
+                  Privacy Policy (DPDP Act)
+                </a>
               </div>
             </div>
           </footer>

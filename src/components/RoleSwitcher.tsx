@@ -60,10 +60,15 @@ export default function RoleSwitcher() {
     return () => window.removeEventListener('foodbridge_state_change', handleUpdate);
   }, []);
 
-  const handleSelectRole = (role: UserRole) => {
-    const user = FoodBridgeStore.switchRole(role);
-    setCurrentUser(user);
+  const handleSelectRole = async (role: UserRole) => {
     setIsOpen(false);
+    try {
+      const user = await FoodBridgeStore.switchRoleAsync(role);
+      setCurrentUser(user);
+    } catch {
+      const user = FoodBridgeStore.switchRole(role);
+      setCurrentUser(user);
+    }
 
     // Navigate to role homepage
     if (role === 'restaurant') window.location.href = '/restaurant';

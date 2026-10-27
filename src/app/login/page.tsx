@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FoodBridgeStore } from '@/lib/store';
 import { UserRole, RestaurantProfile, NGOProfile, DriverProfile } from '@/lib/types';
@@ -24,8 +24,19 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-ink-muted text-sm font-medium">Loading Authentication Portal...</div>}>
+      <LoginFormContent />
+    </Suspense>
+  );
+}
+
+function LoginFormContent() {
   const router = useRouter();
-  const [showIntro, setShowIntro] = useState(true);
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
+
+  const [showIntro, setShowIntro] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
   const [selectedRole, setSelectedRole] = useState<UserRole>('restaurant');
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
@@ -90,46 +101,75 @@ export default function LoginPage() {
   useEffect(() => {
     FoodBridgeStore.init();
     const seen = sessionStorage.getItem('foodbridge_intro_seen');
-    if (seen === 'true') {
+    if (seen === 'true' || redirectUrl) {
       setShowIntro(false);
+    } else {
+      setShowIntro(true);
     }
-  }, []);
+
+    if (redirectUrl) {
+      if (redirectUrl.includes('/restaurant')) setSelectedRole('restaurant');
+      else if (redirectUrl.includes('/ngo')) setSelectedRole('ngo');
+      else if (redirectUrl.includes('/driver')) setSelectedRole('driver');
+    }
+  }, [redirectUrl]);
 
   const handleIntroComplete = () => {
     setShowIntro(false);
     sessionStorage.setItem('foodbridge_intro_seen', 'true');
   };
 
+  // Helper to determine destination after authentication
+  const getDestination = (role: UserRole) => {
+    if (redirectUrl && redirectUrl.startsWith('/')) {
+      return redirectUrl;
+    }
+    if (role === 'restaurant') return '/restaurant/listings';
+    if (role === 'ngo') return '/ngo/discover';
+    return '/driver';
+  };
+
   // Quick 1-Click Demo Login
   const handleQuickLogin = async (role: UserRole) => {
     setIsSubmitting(true);
+    setErrorMsg('');
+    const target = getDestination(role);
     try {
       const user = await FoodBridgeStore.switchRoleAsync(role);
-      setSuccessMsg(`Logged in successfully as ${user.name} (${role.toUpperCase()})`);
+      setSuccessMsg(`Logged in successfully as ${user.name} (${role.toUpperCase()}). Opening ${target}...`);
       setTimeout(() => {
-        router.push('/profile');
-      }, 300);
+        window.location.href = target;
+      }, 250);
     } catch {
       const user = FoodBridgeStore.switchRole(role);
-      setSuccessMsg(`Logged in successfully as ${user.name} (${role.toUpperCase()})`);
+      setSuccessMsg(`Logged in successfully as ${user.name} (${role.toUpperCase()}). Opening ${target}...`);
       setTimeout(() => {
-        router.push('/profile');
-      }, 300);
+        window.location.href = target;
+      }, 250);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Google OAuth Success Handler
-  const handleGoogleSuccess = (
+  const handleGoogleSuccess = async (
     googleUser: { name: string; email: string; avatar_url: string },
     role: UserRole
   ) => {
-    const user = FoodBridgeStore.loginWithGoogle(googleUser, role);
-    setSuccessMsg(`Welcome, ${user.name}! Signed in via Google.`);
-    setTimeout(() => {
-      router.push('/profile');
-    }, 300);
+    setIsSubmitting(true);
+    setErrorMsg('');
+    const target = getDestination(role);
+    try {
+      const user = await FoodBridgeStore.loginWithGoogleAsync(googleUser, role);
+      setSuccessMsg(`Welcome, ${user.name}! Signed in via Google. Opening ${target}...`);
+      setTimeout(() => {
+        window.location.href = target;
+      }, 250);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Google sign-in could not be completed.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle Standard Sign In
@@ -142,13 +182,14 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
+    const target = getDestination(selectedRole);
     try {
       const res = await FoodBridgeStore.loginAsync(email, password, selectedRole);
       if (res.success && res.user) {
-        setSuccessMsg(`Welcome back, ${res.user.name}! Redirecting to profile...`);
+        setSuccessMsg(`Welcome back, ${res.user.name}! Opening ${target}...`);
         setTimeout(() => {
-          router.push('/profile');
-        }, 400);
+          window.location.href = target;
+        }, 300);
       } else {
         setErrorMsg(res.error || 'User not found. Try Quick Login or Register below.');
       }
@@ -272,10 +313,11 @@ export default function LoginPage() {
         return;
       }
 
-      setSuccessMsg(`Registration successful! Verified profile created for ${regResult.user?.name || name}. Redirecting...`);
+      const target = getDestination(selectedRole);
+      setSuccessMsg(`Registration successful! Verified profile created for ${regResult.user?.name || name}. Opening ${target}...`);
       setTimeout(() => {
-        router.push('/profile');
-      }, 500);
+        window.location.href = target;
+      }, 350);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Error occurred during registration. Please try again.');
       setIsSubmitting(false);
@@ -303,6 +345,56 @@ export default function LoginPage() {
               <span>Replay Animated Intro</span>
             </button>
           </div>
+
+          {/* Already Logged In Quick Shortcut */}
+          {FoodBridgeStore.getAuthUser() && (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-ink backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-150">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  ✓
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-ink">
+                    Currently signed in as: {FoodBridgeStore.getAuthUser()?.name} ({FoodBridgeStore.getAuthUser()?.role.toUpperCase()})
+                  </div>
+                  <div className="text-[11px] text-ink-muted">
+                    Active verified session detected. You can proceed directly or switch viewpoints below.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const u = FoodBridgeStore.getAuthUser();
+                  if (u) window.location.href = getDestination(u.role);
+                }}
+                className="px-4 py-2 rounded-xl bg-accent-trust hover:bg-accent-trust-hover text-white font-semibold text-xs transition-colors shrink-0 flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <span>Continue to Portal</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Destination Notification Banner when redirected */}
+          {redirectUrl && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-ink backdrop-blur-md flex items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-ink">Redirect Destination Active</div>
+                  <div className="text-[11px] text-ink-muted">
+                    Sign in below to immediately access: <code className="bg-black/5 px-1.5 py-0.5 rounded font-semibold text-accent-primary">{redirectUrl}</code>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-accent-trust/15 text-accent-trust border border-accent-trust/20 shrink-0">
+                Seamless Return
+              </span>
+            </div>
+          )}
 
           {/* Quick 1-Click Demo Logins Banner */}
           <GlassPanel variant="standard" className="p-5 border border-white/80 space-y-3">
@@ -454,12 +546,38 @@ export default function LoginPage() {
             {authMode === 'signin' ? (
               /* SIGN IN FORM */
               <form onSubmit={handleSignIn} className="max-w-md mx-auto space-y-4">
+                {/* 1-Click Credential Autofill Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-stone-100/70 border border-stone-200/70 text-[11px]">
+                  <span className="text-ink-muted font-medium shrink-0">Auto-fill:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('rajesh@greengarden.in'); setSelectedRole('restaurant'); }}
+                    className="px-2 py-0.5 rounded-md bg-accent-primary-subtle text-accent-primary hover:bg-accent-primary/20 font-semibold transition-colors"
+                  >
+                    Chef Rajesh (Restaurant)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('anita@annamrelief.org'); setSelectedRole('ngo'); }}
+                    className="px-2 py-0.5 rounded-md bg-accent-trust-subtle text-accent-trust hover:bg-accent-trust/20 font-semibold transition-colors"
+                  >
+                    Anita (NGO)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('vikram@driver.foodbridge.in'); setSelectedRole('driver'); }}
+                    className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold transition-colors"
+                  >
+                    Vikram (Driver)
+                  </button>
+                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-ink-muted block mb-1">Email Address</label>
                   <input
                     type="email"
                     required
-                    placeholder="e.g. rajesh@greengarden.com"
+                    placeholder="e.g. rajesh@greengarden.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-white text-xs focus:outline-hidden focus:border-ink"
@@ -501,6 +619,13 @@ export default function LoginPage() {
                   <LogIn className="w-4 h-4" />
                   <span>{isSubmitting ? 'Signing in...' : 'Sign In to FoodBridge'}</span>
                 </button>
+
+                <p className="text-[11px] text-center text-ink-muted pt-1">
+                  Protected under Indian food safety norms. Read our{' '}
+                  <Link href="/privacy" className="text-accent-primary font-semibold hover:underline">
+                    Privacy Policy & Data Shield
+                  </Link>
+                </p>
               </form>
             ) : (
               /* REGISTRATION FORM WITH INDIAN REGULATORY FIELDS */

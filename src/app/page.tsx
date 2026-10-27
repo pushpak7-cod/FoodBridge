@@ -6,6 +6,7 @@ import { FoodBridgeStore } from '@/lib/store';
 import { PlatformAnalytics, SurplusListing } from '@/lib/types';
 import GlassPanel from '@/components/GlassPanel';
 import ExpiryCountdown from '@/components/ExpiryCountdown';
+import InteractiveRescueLoop3D from '@/components/InteractiveRescueLoop3D';
 import {
   Utensils,
   Building2,
@@ -160,6 +161,26 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 3D Interactive Rescue Loop: The Live Working of FoodBridge */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-semibold mb-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Interactive 3D Lifecycle Visualization</span>
+            </div>
+            <h2 className="font-serif font-bold text-2xl sm:text-3xl text-ink">
+              How FoodBridge coordinates food rescue in real-time
+            </h2>
+            <p className="text-xs sm:text-sm text-ink-muted mt-1 max-w-xl">
+              Rotate the interactive 3D model below to explore how commercial surplus is tracked, dispatched in cold-chain units, and distributed safely before shelf-life expires.
+            </p>
+          </div>
+        </div>
+
+        <InteractiveRescueLoop3D />
+      </section>
+
       {/* 3 Verified Partner Roles */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div>
@@ -192,14 +213,14 @@ export default function HomePage() {
                     FSSAI Verified
                   </span>
                 </div>
-                <h3 className="font-serif font-bold text-base text-ink mt-1.5">Kitchen overview</h3>
+                <h3 className="font-serif font-bold text-base text-ink mt-1.5">Kitchen Home & Operations</h3>
                 <p className="text-xs text-ink-muted mt-1.5 leading-relaxed">
                   List surplus dishes in under a minute with visual shelf-life countdowns, specify hygienic packing, and accept incoming relief requests.
                 </p>
               </div>
             </div>
             <div className="text-xs font-semibold text-accent-primary pt-3 border-t border-stone-200/50 flex items-center justify-between">
-              <span>Open kitchen view</span>
+              <span>Open kitchen home</span>
               <span>→</span>
             </div>
           </GlassPanel>

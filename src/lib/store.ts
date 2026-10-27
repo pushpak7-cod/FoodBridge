@@ -78,16 +78,8 @@ export class FoodBridgeStore {
     if (!window.localStorage.getItem(STORAGE_KEYS.USERS)) {
       setStorage(STORAGE_KEYS.USERS, SEED_USERS);
     }
-    if (!window.localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      // Default to Restaurant Manager for initial demo view, or NGO
-      setStorage(STORAGE_KEYS.CURRENT_USER, SEED_USERS[0]);
-    } else {
-      // Clean up legacy admin role if present
-      const current = getStorage<User | null>(STORAGE_KEYS.CURRENT_USER, null);
-      if (current && (current as any).role === 'admin') {
-        setStorage(STORAGE_KEYS.CURRENT_USER, SEED_USERS[0]);
-      }
-    }
+    // Note: Brand new visitors start unauthenticated so they only see Home & Impact
+    // When they log in via 1-Click Demo, Google, or Email, CURRENT_USER & AUTH_STATUS are set
     if (!window.localStorage.getItem(STORAGE_KEYS.RESTAURANTS)) {
       setStorage(STORAGE_KEYS.RESTAURANTS, SEED_RESTAURANTS);
     }
@@ -219,15 +211,16 @@ export class FoodBridgeStore {
   }
 
   static getAuthUser(): User | null {
-    if (typeof window === 'undefined') return SEED_USERS[0];
+    if (typeof window === 'undefined') return null;
     const status = window.localStorage.getItem(STORAGE_KEYS.AUTH_STATUS);
-    if (status === 'unauthenticated') return null;
-    return this.getCurrentUser();
+    if (status !== 'authenticated') return null;
+    const user = getStorage<User | null>(STORAGE_KEYS.CURRENT_USER, null);
+    return user;
   }
 
   static isAuthenticated(): boolean {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem(STORAGE_KEYS.AUTH_STATUS) !== 'unauthenticated';
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(STORAGE_KEYS.AUTH_STATUS) === 'authenticated' && !!getStorage<User | null>(STORAGE_KEYS.CURRENT_USER, null);
   }
 
   static setCurrentUser(user: User): void {
@@ -328,6 +321,36 @@ export class FoodBridgeStore {
       return { success: false, error: e.message || 'Login network error' };
     }
     return this.login(email, password, preferredRole);
+  }
+
+  static async loginWithGoogleAsync(
+    googleUser: { name: string; email: string; avatar_url?: string },
+    role: UserRole = 'restaurant',
+    extraProfileDetails?: any
+  ): Promise<User> {
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: googleUser.name,
+          email: googleUser.email,
+          avatar_url: googleUser.avatar_url,
+          role,
+        }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          this.setCurrentUser(data.user);
+          return data.user;
+        }
+      }
+    } catch (e) {
+      console.warn('loginWithGoogleAsync server sync warning:', e);
+    }
+    return this.loginWithGoogle(googleUser, role, extraProfileDetails);
   }
 
   static loginWithGoogle(

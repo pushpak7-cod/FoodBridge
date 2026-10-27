@@ -20,6 +20,7 @@ import {
   User as UserIcon,
   LogOut,
   LogIn,
+  Home,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -43,13 +44,20 @@ export default function Navbar() {
     window.location.href = '/login';
   };
 
-  const role = currentUser?.role || 'restaurant';
-
   const getNavLinks = () => {
-    switch (role) {
+    // When not logged in (first time guest), ONLY show Home and Impact
+    if (!currentUser) {
+      return [
+        { href: '/', label: 'Home', icon: Home },
+        { href: '/impact', label: 'Impact', icon: BarChart3 },
+      ];
+    }
+
+    // Role-specific navigation for authenticated users
+    switch (currentUser.role) {
       case 'restaurant':
         return [
-          { href: '/restaurant', label: 'Overview', icon: Utensils },
+          { href: '/restaurant', label: 'Home', icon: Home },
           { href: '/restaurant/new-listing', label: 'Share surplus food', icon: PlusCircle, highlight: true },
           { href: '/restaurant/listings', label: 'My listings', icon: Inbox },
           { href: '/restaurant/requests', label: 'Pickup requests', icon: Building2 },
@@ -58,6 +66,7 @@ export default function Navbar() {
         ];
       case 'ngo':
         return [
+          { href: '/ngo', label: 'Home', icon: Home },
           { href: '/ngo/discover', label: 'Find surplus food', icon: Search, highlight: true },
           { href: '/ngo/standing-needs', label: 'Share food need', icon: PlusCircle },
           { href: '/ngo/requests', label: 'My requests', icon: Inbox },
@@ -66,12 +75,12 @@ export default function Navbar() {
         ];
       case 'driver':
         return [
-          { href: '/driver', label: 'Driver cockpit', icon: Truck, highlight: true },
-          { href: '/impact', label: 'Community impact', icon: BarChart3 },
+          { href: '/driver', label: 'Home', icon: Home },
+          { href: '/impact', label: 'Impact', icon: BarChart3 },
         ];
       default:
         return [
-          { href: '/ngo/discover', label: 'Find food', icon: Search },
+          { href: '/', label: 'Home', icon: Home },
           { href: '/impact', label: 'Impact', icon: BarChart3 },
         ];
     }
@@ -170,7 +179,7 @@ export default function Navbar() {
               </>
             ) : (
               <Link
-                href="/login"
+                href={`/login${pathname && pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''}`}
                 className="min-h-[44px] px-4 py-2 rounded-xl bg-accent-primary hover:bg-accent-primary-hover text-white text-xs font-semibold shadow-md shadow-accent-primary/20 flex items-center gap-2 transition-all"
               >
                 <LogIn className="w-4 h-4" />
@@ -194,15 +203,28 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-white/70 bg-white/90 backdrop-blur-xl px-4 pt-3 pb-5 space-y-1.5 shadow-xl animate-in fade-in duration-150">
           <div className="text-xs font-semibold text-ink-light px-3 py-1 flex items-center justify-between">
-            <span>Active view: {role}</span>
-            {currentUser && (
-              <Link
-                href="/profile"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="text-accent-primary font-bold hover:underline"
-              >
-                View Profile →
-              </Link>
+            {currentUser ? (
+              <>
+                <span className="capitalize">Active view: {currentUser.role}</span>
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-accent-primary font-bold hover:underline"
+                >
+                  View Profile →
+                </Link>
+              </>
+            ) : (
+              <>
+                <span>Welcome to FoodBridge</span>
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-accent-primary font-bold hover:underline"
+                >
+                  Sign In →
+                </Link>
+              </>
             )}
           </div>
           {navLinks.map((link) => {
@@ -248,7 +270,7 @@ export default function Navbar() {
               </>
             ) : (
               <Link
-                href="/login"
+                href={`/login${pathname && pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''}`}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="min-h-[44px] flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-accent-primary text-white text-center shadow-sm"
               >
